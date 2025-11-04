@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Activity, FileText, TrendingUp, Clock, AlertTriangle, User } from 'lucide-react';
+import { Users, Activity, FileText, TrendingUp, Clock, AlertTriangle, User, Stethoscope, ClipboardList, UserPlus } from 'lucide-react';
 import { patientService, triageService } from '../services/api';
 
 interface Stats {
@@ -36,12 +36,11 @@ function Inicio() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Get user info from localStorage
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
-    
+
     fetchDashboardData();
   }, []);
 
@@ -61,7 +60,6 @@ function Inicio() {
 
       if (patientsData.success && triageStatsData.success && recentTriageData.success) {
         const totalPacientes = patientsData.pagination?.totalRecords || 0;
-        const totalEvaluations = triageStatsData.data?.totalEvaluations || 0;
 
         const today = new Date().toISOString().split('T')[0];
         const evaluacionesHoy = triageStatsData.data?.dailyStats?.find(
@@ -122,7 +120,7 @@ function Inicio() {
     const date = new Date(dateString);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return 'Ahora';
     if (diffInMinutes < 60) return `${diffInMinutes} min`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} h`;
@@ -146,7 +144,7 @@ function Inicio() {
           <h1 className="text-2xl font-bold text-gray-800 uppercase">Panel de Control SAVISER</h1>
           <p className="text-sm text-gray-600 mt-1">Cargando datos del sistema...</p>
         </div>
-        
+
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-600 border-t-transparent"></div>
         </div>
@@ -154,9 +152,508 @@ function Inicio() {
     );
   }
 
-  return (
+  const renderDashboardByRole = () => {
+    switch (user?.rol) {
+      case 'MEDICO':
+        return renderMedicoDashboard();
+      case 'ENFERMERO':
+        return renderEnfermeroDashboard();
+      case 'RECEPCIONISTA':
+        return renderRecepcionistaDashboard();
+      case 'ADMIN':
+        return renderAdminDashboard();
+      default:
+        return renderAdminDashboard();
+    }
+  };
+
+  const renderMedicoDashboard = () => (
     <div className="space-y-6">
-      {/* Header */}
+      <div className="border-l-4 border-blue-600 pl-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 uppercase">Panel Médico - SAVISER</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Gestión de pacientes y evaluaciones - {new Date().toLocaleDateString('es-CO', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+          </div>
+          {user && (
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Stethoscope className="w-4 h-4" />
+                <span>Dr./Dra. <strong>{user.nombre}</strong></span>
+              </div>
+              <p className="text-xs text-gray-500">{user.especialidad || 'Medicina General'}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 font-medium">Error: {error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm font-medium">Emergencias Críticas</p>
+              <p className="text-3xl font-bold">{stats.emergencias}</p>
+            </div>
+            <AlertTriangle className="w-8 h-8 text-red-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-yellow-100 text-sm font-medium">Pacientes Pendientes</p>
+              <p className="text-3xl font-bold">{stats.triagesPendientes}</p>
+            </div>
+            <Clock className="w-8 h-8 text-yellow-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">Total Pacientes</p>
+              <p className="text-3xl font-bold">{stats.totalPacientes}</p>
+            </div>
+            <Users className="w-8 h-8 text-blue-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm font-medium">Evaluaciones Hoy</p>
+              <p className="text-3xl font-bold">{stats.evaluacionesHoy}</p>
+            </div>
+            <Activity className="w-8 h-8 text-green-200" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Stethoscope className="w-5 h-5 text-blue-600" />
+          Acciones Médicas
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            onClick={() => navigate('/buscar')}
+            className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <Users className="w-6 h-6 text-blue-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Consultar Pacientes</h3>
+            <p className="text-sm text-gray-600">Ver historial y evaluaciones</p>
+          </button>
+
+          <button
+            onClick={() => navigate('/estadisticas')}
+            className="bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <Activity className="w-6 h-6 text-green-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Estadísticas Clínicas</h3>
+            <p className="text-sm text-gray-600">Reportes y análisis de casos</p>
+          </button>
+
+          <button
+            onClick={() => navigate('/registro')}
+            className="bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <FileText className="w-6 h-6 text-teal-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Nuevo Registro</h3>
+            <p className="text-sm text-gray-600">Registrar paciente y triage</p>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-blue-600" />
+          Pacientes Prioritarios
+        </h2>
+
+        {recentEvaluations.length === 0 ? (
+          <div className="text-center py-8">
+            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No hay evaluaciones recientes</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Paciente</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Nivel</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Tiempo</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentEvaluations.map((evaluation) => (
+                  <tr key={evaluation._id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 font-medium text-gray-800">{evaluation.nombrePaciente}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${getTriageColor(evaluation.triageResult.level)}`}>
+                        {evaluation.triageResult.level}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center text-gray-600">{formatTimeAgo(evaluation.evaluationDate)}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(evaluation.status)}`}>
+                        {evaluation.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderEnfermeroDashboard = () => (
+    <div className="space-y-6">
+      <div className="border-l-4 border-teal-600 pl-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 uppercase">Panel de Enfermería - SAVISER</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Evaluación de triage y atención - {new Date().toLocaleDateString('es-CO', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+          </div>
+          {user && (
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Activity className="w-4 h-4" />
+                <span>Enf. <strong>{user.nombre}</strong></span>
+              </div>
+              <p className="text-xs text-gray-500">Enfermería</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 font-medium">Error: {error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm font-medium">Evaluaciones Hoy</p>
+              <p className="text-3xl font-bold">{stats.evaluacionesHoy}</p>
+            </div>
+            <Activity className="w-8 h-8 text-green-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-yellow-100 text-sm font-medium">En Espera</p>
+              <p className="text-3xl font-bold">{stats.triagesPendientes}</p>
+            </div>
+            <Clock className="w-8 h-8 text-yellow-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm font-medium">Casos Urgentes</p>
+              <p className="text-3xl font-bold">{stats.emergencias}</p>
+            </div>
+            <AlertTriangle className="w-8 h-8 text-red-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">Total Pacientes</p>
+              <p className="text-3xl font-bold">{stats.totalPacientes}</p>
+            </div>
+            <Users className="w-8 h-8 text-blue-200" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <ClipboardList className="w-5 h-5 text-teal-600" />
+          Acciones de Enfermería
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            onClick={() => navigate('/registro')}
+            className="bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <FileText className="w-6 h-6 text-teal-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Evaluación de Triage</h3>
+            <p className="text-sm text-gray-600">Registrar nuevo paciente</p>
+          </button>
+
+          <button
+            onClick={() => navigate('/buscar')}
+            className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <Users className="w-6 h-6 text-blue-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Buscar Pacientes</h3>
+            <p className="text-sm text-gray-600">Consultar registros</p>
+          </button>
+
+          <button
+            onClick={() => navigate('/estadisticas')}
+            className="bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <Activity className="w-6 h-6 text-green-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Estadísticas</h3>
+            <p className="text-sm text-gray-600">Ver reportes del día</p>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-teal-600" />
+          Evaluaciones Recientes
+        </h2>
+
+        {recentEvaluations.length === 0 ? (
+          <div className="text-center py-8">
+            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No hay evaluaciones recientes</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Paciente</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Nivel</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Tiempo</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentEvaluations.map((evaluation) => (
+                  <tr key={evaluation._id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 font-medium text-gray-800">{evaluation.nombrePaciente}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${getTriageColor(evaluation.triageResult.level)}`}>
+                        {evaluation.triageResult.level}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center text-gray-600">{formatTimeAgo(evaluation.evaluationDate)}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(evaluation.status)}`}>
+                        {evaluation.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderRecepcionistaDashboard = () => (
+    <div className="space-y-6">
+      <div className="border-l-4 border-orange-600 pl-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 uppercase">Panel de Recepción - SAVISER</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Gestión de ingresos y registros - {new Date().toLocaleDateString('es-CO', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+          </div>
+          {user && (
+            <div className="text-right">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <UserPlus className="w-4 h-4" />
+                <span><strong>{user.nombre}</strong></span>
+              </div>
+              <p className="text-xs text-gray-500">Recepción</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 font-medium">Error: {error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">Pacientes Registrados</p>
+              <p className="text-3xl font-bold">{stats.totalPacientes}</p>
+            </div>
+            <Users className="w-8 h-8 text-blue-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm font-medium">Ingresos Hoy</p>
+              <p className="text-3xl font-bold">{stats.evaluacionesHoy}</p>
+            </div>
+            <Activity className="w-8 h-8 text-green-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-yellow-100 text-sm font-medium">En Espera</p>
+              <p className="text-3xl font-bold">{stats.triagesPendientes}</p>
+            </div>
+            <Clock className="w-8 h-8 text-yellow-200" />
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm font-medium">Casos Urgentes</p>
+              <p className="text-3xl font-bold">{stats.emergencias}</p>
+            </div>
+            <AlertTriangle className="w-8 h-8 text-red-200" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <UserPlus className="w-5 h-5 text-orange-600" />
+          Acciones de Recepción
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            onClick={() => navigate('/registro')}
+            className="bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <FileText className="w-6 h-6 text-orange-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Registrar Paciente</h3>
+            <p className="text-sm text-gray-600">Nuevo ingreso al sistema</p>
+          </button>
+
+          <button
+            onClick={() => navigate('/buscar')}
+            className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <Users className="w-6 h-6 text-blue-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Buscar Pacientes</h3>
+            <p className="text-sm text-gray-600">Consultar registros</p>
+          </button>
+
+          <button
+            onClick={() => navigate('/estadisticas')}
+            className="bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg p-4 text-left transition-colors"
+          >
+            <Activity className="w-6 h-6 text-green-600 mb-2" />
+            <h3 className="font-semibold text-gray-800">Ver Estadísticas</h3>
+            <p className="text-sm text-gray-600">Reportes de ingresos</p>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-orange-600" />
+          Registros Recientes
+        </h2>
+
+        {recentEvaluations.length === 0 ? (
+          <div className="text-center py-8">
+            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No hay registros recientes</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Paciente</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">ID</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Nivel</th>
+                  <th className="text-center py-3 px-4 font-semibold text-gray-700">Tiempo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentEvaluations.map((evaluation) => (
+                  <tr key={evaluation._id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 font-medium text-gray-800">{evaluation.nombrePaciente}</td>
+                    <td className="py-3 px-4 text-center text-gray-600">{evaluation.identificacionPaciente}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${getTriageColor(evaluation.triageResult.level)}`}>
+                        {evaluation.triageResult.level}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-center text-gray-600">{formatTimeAgo(evaluation.evaluationDate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderAdminDashboard = () => (
+    <div className="space-y-6">
       <div className="border-l-4 border-teal-600 pl-4">
         <div className="flex items-center justify-between">
           <div>
@@ -182,7 +679,6 @@ function Inicio() {
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800 font-medium">Error: {error}</p>
@@ -198,7 +694,6 @@ function Inicio() {
         </div>
       )}
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
@@ -241,7 +736,6 @@ function Inicio() {
         </div>
       </div>
 
-      {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-teal-600" />
@@ -277,13 +771,12 @@ function Inicio() {
         </div>
       </div>
 
-      {/* Recent Evaluations */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
           <Activity className="w-5 h-5 text-teal-600" />
           Evaluaciones Recientes
         </h2>
-        
+
         {recentEvaluations.length === 0 ? (
           <div className="text-center py-8">
             <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -326,7 +819,6 @@ function Inicio() {
         )}
       </div>
 
-      {/* System Info */}
       <div className="bg-gradient-to-r from-teal-50 to-green-50 rounded-lg p-6 border border-teal-200">
         <div className="flex items-center gap-3 mb-3">
           <div className={`w-3 h-3 rounded-full animate-pulse ${error ? 'bg-red-500' : 'bg-green-500'}`}></div>
@@ -335,8 +827,8 @@ function Inicio() {
           </h3>
         </div>
         <p className="text-sm text-gray-600 mb-2">
-          {error 
-            ? 'Algunos servicios no están disponibles' 
+          {error
+            ? 'Algunos servicios no están disponibles'
             : 'Todos los servicios funcionando correctamente'
           }
         </p>
@@ -346,6 +838,8 @@ function Inicio() {
       </div>
     </div>
   );
+
+  return renderDashboardByRole();
 }
 
 export default Inicio;
