@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { FileText, Menu, X, Home, Search } from 'lucide-react';
+import { FileText, Menu, X, Home, Search, Activity, Users } from 'lucide-react';
 import Login from './components/Login';
 import Header from './components/Header';
 import Inicio from './pages/Inicio';
@@ -8,6 +8,8 @@ import Registro from './pages/Registro';
 import Signos from './pages/Signos';
 import Resultado from './pages/Resultado';
 import BuscarPacientes from './pages/BuscarPacientes';
+import Estadisticas from './pages/Estadisticas';
+import GestionUsuarios from './pages/GestionUsuarios';
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -130,6 +132,28 @@ function App() {
                 <Search className="w-5 h-5" />
                 <span className="font-medium">Buscar Pacientes</span>
               </button>
+              <button 
+                onClick={() => {
+                  window.location.href = '/estadisticas';
+                  setIsMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <Activity className="w-5 h-5" />
+                <span className="font-medium">Estadísticas</span>
+              </button>
+              {user?.rol === 'ADMIN' && (
+                <button 
+                  onClick={() => {
+                    window.location.href = '/usuarios';
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="font-medium">Gestión de Usuarios</span>
+                </button>
+              )}
             </nav>
 
             <div className="absolute bottom-6 left-6 right-6">
@@ -168,6 +192,8 @@ function App() {
                 <Route path="/signos" element={<Signos />} />
                 <Route path="/resultado" element={<Resultado />} />
                 <Route path="/buscar" element={<BuscarPacientes />} />
+                <Route path="/estadisticas" element={<Estadisticas />} />
+                <Route path="/usuarios" element={<GestionUsuarios />} />
               </Routes>
             </div>
 
