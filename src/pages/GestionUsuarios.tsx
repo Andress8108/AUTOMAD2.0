@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
-  Users, Plus, Edit, Trash2, Eye, Shield, UserCheck, UserX,
-  Search, Filter, Download, RefreshCw, AlertCircle, CheckCircle
-} from 'lucide-react';
+import { Users, Plus, CreditCard as Edit, Trash2, Eye, Shield, UserCheck, UserX, Search, Filter, Download, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
 import { authService } from '../services/api';
 
 interface User {
